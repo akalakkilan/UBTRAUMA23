@@ -134,7 +134,7 @@
       <div class="qh-no">SOAL NO. <span id="qno">1</span></div>
       <div class="qh-right">
         <button id="btnFlag" class="flagbtn">⚑ Ragu-Ragu</button>
-        <div class="timer" id="timerBox">SISA WAKTU <span id="clock">120:00</span></div>
+        <div class="timer" id="timerBox">SISA WAKTU <span id="clock">180:00</span></div>
       </div>
     </div>
     <div id="qhost" class="qcard"></div>
@@ -487,20 +487,22 @@ QUIZ.push(
 // ===================== APP LOGIC (CBT) =====================
 (function(){
   const LETTERS=['A','B','C','D','E'];
-  const EXAM_SECONDS=120*60;
-  const LS='cbt_trauma_v2';
+  const EXAM_SECONDS=180*60;
+  const LS='cbt_trauma_v3';
   const $=id=>document.getElementById(id);
 
   function escapeHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function defaultOrder(){return QUIZ.map((_,i)=>i);}
   function shuffleArr(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
+  function buildOptOrders(){const m={};QUIZ.forEach((q,i)=>{m[i]=shuffleArr(q.o.map((_,k)=>k));});return m;}
 
-  function fresh(){return {order:shuffleArr(defaultOrder()),shuffle:true,answers:{},flags:{},cur:0,timeLeft:EXAM_SECONDS,started:false,finished:false};}
+  function fresh(){return {order:shuffleArr(defaultOrder()),shuffle:true,optOrders:buildOptOrders(),answers:{},flags:{},cur:0,timeLeft:EXAM_SECONDS,started:false,finished:false};}
 
   function load(){try{const r=localStorage.getItem(LS);return r?JSON.parse(r):null;}catch(e){return null;}}
   let S=load()||fresh();
   if(!S.order||S.order.length!==QUIZ.length){S.order=defaultOrder();S.cur=0;}
   if(!S.answers)S.answers={}; if(!S.flags)S.flags={};
+  if(!S.optOrders||typeof S.optOrders!=='object')S.optOrders={};
   if(typeof S.timeLeft!=='number')S.timeLeft=EXAM_SECONDS;
 
   let saveTimer=null;
@@ -528,6 +530,7 @@ QUIZ.push(
   }
 
   function qidAt(pos){return S.order[pos];}
+  function optOrderFor(qid){if(!S.optOrders)S.optOrders={};if(!S.optOrders[qid]||S.optOrders[qid].length!==QUIZ[qid].o.length){S.optOrders[qid]=shuffleArr(QUIZ[qid].o.map((_,k)=>k));}return S.optOrders[qid];}
   function cellClass(pos){const qid=qidAt(pos);if(S.flags[qid])return 'flagged';if(S.answers[qid]!=null)return 'answered';return 'empty';}
 
   function renderGrid(){
@@ -560,14 +563,15 @@ QUIZ.push(
     h+='<div class="q-text">'+escapeHtml(q.q)+'</div>';
     if(q.img){h+='<div class="imgnote"><span>\ud83d\uddbc\ufe0f</span><span>'+escapeHtml(q.img)+'</span></div>';}
     h+='<div class="opts">';
-    q.o.forEach((t,i)=>{
+    const oo=optOrderFor(qid);
+    oo.forEach((orig,pos)=>{
       let cls='opt';
-      if(reveal){cls+=' disabled';if(i===q.a)cls+=' correct';else if(i===choice)cls+=' wrong';}
-      h+='<div class="'+cls+'" data-i="'+i+'"><span class="okey">'+LETTERS[i]+'</span><span class="otext">'+escapeHtml(t)+'</span></div>';
+      if(reveal){cls+=' disabled';if(orig===q.a)cls+=' correct';else if(orig===choice)cls+=' wrong';}
+      h+='<div class="'+cls+'" data-i="'+orig+'"><span class="okey">'+LETTERS[pos]+'</span><span class="otext">'+escapeHtml(q.o[orig])+'</span></div>';
     });
     h+='</div>';
     h+='<div class="explain'+(reveal?' show':'')+'">';
-    h+='<div class="ex-row"><span class="lab">Kunci Jawaban</span><span class="keyans">'+LETTERS[q.a]+'. '+escapeHtml(q.o[q.a])+'</span></div>';
+    h+='<div class="ex-row"><span class="lab">Kunci Jawaban</span><span class="keyans">'+LETTERS[optOrderFor(qid).indexOf(q.a)]+'. '+escapeHtml(q.o[q.a])+'</span></div>';
     h+='<div class="ex-row"><span class="lab">Level SKDI</span> <span class="skdi">'+escapeHtml(q.skdi)+'</span></div>';
     h+='<div class="ex-row"><span class="lab">Pembahasan</span><div class="pemb">'+q.p+'</div></div>';
     h+='<div class="src">Sumber soal: '+escapeHtml(q.n)+'</div>';
